@@ -1,6 +1,6 @@
 # YouTube Speed & Caption Control
 
-A Chrome (Manifest V3) extension that:
+A cross-browser (Manifest V3) extension for **Chrome, Edge, Brave, and Firefox** that:
 
 - **Always forces your chosen playback speed.** Pick a speed in the popup and
   every YouTube video plays at that speed. If YouTube resets it (e.g. when a new
@@ -8,16 +8,31 @@ A Chrome (Manifest V3) extension that:
 - **Always keeps captions off.** Whenever subtitles turn on, they're switched
   back off automatically.
 
-## Install (load unpacked)
+## Install on Chrome / Edge / Brave (load unpacked)
 
-1. Open `chrome://extensions` in Chrome (or any Chromium browser — Edge, Brave…).
+1. Open `chrome://extensions` (or `edge://extensions`, `brave://extensions`).
 2. Turn on **Developer mode** (top-right).
-3. Click **Load unpacked** and select this folder
-   (`...\repos\youtube`).
+3. Click **Load unpacked** and select this folder.
 4. Pin the extension and click its icon to choose your speed.
 
-To update after editing a file, return to `chrome://extensions` and click the
+To update after editing a file, return to the extensions page and click the
 **reload** ↻ icon on the extension card.
+
+## Install on Firefox (temporary add-on)
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on…**.
+3. Select the `manifest.json` file inside this folder.
+4. The extension stays loaded until you restart Firefox. Re-load it the same way
+   to pick up edits.
+
+For a permanent install you'd package and sign the add-on via
+[addons.mozilla.org](https://addons.mozilla.org) (or use Firefox Developer/Nightly
+with unsigned add-ons allowed).
+
+> The same folder works in both Chromium browsers and Firefox. The
+> `browser_specific_settings.gecko.id` in `manifest.json` is **required** by
+> Firefox for `storage.sync` to work — Chromium browsers simply ignore that key.
 
 ## Using it
 
@@ -28,8 +43,8 @@ Click the toolbar icon to open the popup:
   (0.0625×–16×). Changes save automatically and apply to open YouTube tabs.
 - **Always turn off captions** — toggle caption suppression.
 
-Settings are stored with `chrome.storage.sync`, so they follow your Chrome
-profile across devices.
+Settings are stored with `chrome.storage.sync`, so they follow your browser
+profile across devices (Firefox syncs them through a signed-in Firefox Account).
 
 ## How it works
 

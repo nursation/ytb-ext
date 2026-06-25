@@ -3,6 +3,15 @@
   "name": "YouTube Speed & Caption Control",
   "version": "1.0.0",
   "description": "Always forces your chosen YouTube playback speed on every video and keeps captions turned off.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "youtube-speed-caption@nursation",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
   "permissions": ["storage"],
   "host_permissions": ["*://*.youtube.com/*"],
   "content_scripts": [

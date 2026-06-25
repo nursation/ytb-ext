@@ -5,3 +5,9 @@ desktop.ini
 *.swp
 .vscode/
 .idea/
+
+# Build / signing artifacts
+dist/
+web-ext-artifacts/
+*.xpi
+*.zip
