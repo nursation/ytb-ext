@@ -7,6 +7,9 @@ A cross-browser (Manifest V3) extension for **Chrome, Edge, Brave, and Firefox**
   video starts), the extension pushes it straight back.
 - **Always keeps captions off.** Whenever subtitles turn on, they're switched
   back off automatically.
+- **On-page speed buttons.** Small `1x 1.5x 2x 2.5x` buttons appear in front of
+  the video title on watch pages; clicking one saves that speed and applies it
+  instantly.
 
 ## Install on Chrome / Edge / Brave (load unpacked)
 

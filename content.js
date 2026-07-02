@@ -97,6 +97,111 @@
     }
   }
 
+  /* ---------- on-page speed buttons ---------- */
+
+  const PRESETS = [1, 1.5, 2, 2.5];
+  const BAR_ID = "ytscc-speed-bar";
+  const STYLE_ID = "ytscc-speed-style";
+
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      #${BAR_ID} {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+        margin-right: 8px;
+        user-select: none;
+      }
+      #${BAR_ID} button {
+        box-sizing: border-box;
+        min-width: 38px;
+        font: 500 12px/1 "Roboto", "Arial", sans-serif;
+        padding: 5px 8px;
+        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, 0.1));
+        border-radius: 12px;
+        cursor: pointer;
+        background: transparent;
+        color: var(--yt-spec-text-secondary, #606060);
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      #${BAR_ID} button:hover {
+        background: var(--yt-spec-10-percent-layer, rgba(0, 0, 0, 0.1));
+        color: var(--yt-spec-text-primary, #0f0f0f);
+      }
+      #${BAR_ID} button.ytscc-active {
+        background: var(--yt-spec-text-primary, #0f0f0f);
+        border-color: transparent;
+        color: var(--yt-spec-base-background, #fff);
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function selectSpeed(speed) {
+    settings.speed = clampSpeed(speed);
+    chrome.storage.sync.set({ speed: settings.speed });
+    // Apply immediately (even with enforcement toggled off) for instant feedback.
+    const video = getVideo();
+    if (video) video.playbackRate = settings.speed;
+    updateActiveButtons();
+  }
+
+  function buildBar() {
+    const bar = document.createElement("span");
+    bar.id = BAR_ID;
+    for (const speed of PRESETS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.dataset.speed = String(speed);
+      btn.textContent = `${speed}x`;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        selectSpeed(speed);
+      });
+      bar.appendChild(btn);
+    }
+    return bar;
+  }
+
+  function updateActiveButtons() {
+    const bar = document.getElementById(BAR_ID);
+    if (!bar) return;
+    const target = clampSpeed(settings.speed);
+    for (const btn of bar.querySelectorAll("button")) {
+      btn.classList.toggle(
+        "ytscc-active",
+        Math.abs(Number(btn.dataset.speed) - target) < EPSILON
+      );
+    }
+  }
+
+  // Insert the bar as the first element inside the watch-page title <h1>.
+  // YouTube re-renders the title on SPA navigation, which can drop the bar;
+  // applyAll() re-injects it whenever it's missing.
+  function injectSpeedButtons() {
+    ensureStyles();
+    const title = document.querySelector(
+      "ytd-watch-metadata h1, h1.title.ytd-video-primary-info-renderer"
+    );
+    if (!title) return;
+    let bar = document.getElementById(BAR_ID);
+    if (!bar || bar.parentElement !== title) {
+      if (bar) bar.remove();
+      bar = buildBar();
+      title.prepend(bar);
+    }
+    // Lay the bar and the title text out on one line, buttons first.
+    if (title.style.display !== "flex") {
+      title.style.display = "flex";
+      title.style.alignItems = "center";
+    }
+    updateActiveButtons();
+  }
+
   /* ---------- orchestration ---------- */
 
   function applyAll() {
@@ -104,6 +209,7 @@
     if (video) hookVideo(video);
     applySpeed();
     disableCaptions();
+    injectSpeedButtons();
   }
 
   // Debounced DOM observer: YouTube churns the DOM heavily, so coalesce
