@@ -20,6 +20,9 @@
   const EPSILON = 0.001;
 
   let settings = { ...DEFAULTS };
+  // Temporary in-memory override (Ctrl+Down → 1x). Never written to storage,
+  // so the saved speed is untouched and Ctrl+Up can return to it.
+  let tempSpeed = null;
 
   /* ---------- settings ---------- */
 
@@ -33,6 +36,8 @@
     for (const key of Object.keys(changes)) {
       if (key in DEFAULTS) settings[key] = changes[key].newValue;
     }
+    // A fresh speed choice (e.g. from the popup) ends any temporary override.
+    if (changes.speed) tempSpeed = null;
     applyAll();
   });
 
@@ -54,11 +59,15 @@
 
   /* ---------- speed ---------- */
 
+  function effectiveSpeed() {
+    return clampSpeed(tempSpeed ?? settings.speed);
+  }
+
   function applySpeed() {
     if (!settings.enabled) return;
     const video = getVideo();
     if (!video) return;
-    const target = clampSpeed(settings.speed);
+    const target = effectiveSpeed();
     if (Math.abs(video.playbackRate - target) > EPSILON) {
       video.playbackRate = target;
     }
@@ -99,7 +108,8 @@
 
   /* ---------- on-page speed buttons ---------- */
 
-  const PRESETS = [1, 1.5, 2, 2.5];
+  // Laid out as a 3-column grid: 1 / 1.5 / 2 on top, 2.5 / 3 / 3.3 below.
+  const PRESETS = [1, 1.5, 2, 2.5, 3, 3.3];
   const BAR_ID = "ytscc-speed-bar";
   const STYLE_ID = "ytscc-speed-style";
 
@@ -109,46 +119,101 @@
     style.id = STYLE_ID;
     style.textContent = `
       #${BAR_ID} {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
+        /* Light theme by default; YouTube flags dark mode with <html dark>. */
+        --ytscc-line: rgba(0, 0, 0, 0.2);
+        --ytscc-fg: #606060;
+        --ytscc-fg-strong: #0f0f0f;
+        --ytscc-hover: rgba(0, 0, 0, 0.08);
+        --ytscc-on-accent: #fff;
+        display: inline-grid;
+        grid-template-columns: repeat(3, 1fr);
         flex: none;
         margin-right: 8px;
+        border: 1px solid var(--ytscc-line);
+        background: transparent;
         user-select: none;
+      }
+      html[dark] #${BAR_ID},
+      ytd-app[dark] #${BAR_ID} {
+        --ytscc-line: rgba(255, 255, 255, 0.25);
+        --ytscc-fg: #aaa;
+        --ytscc-fg-strong: #f1f1f1;
+        --ytscc-hover: rgba(255, 255, 255, 0.12);
+        --ytscc-on-accent: #0f0f0f;
       }
       #${BAR_ID} button {
         box-sizing: border-box;
-        min-width: 38px;
-        font: 500 12px/1 "Roboto", "Arial", sans-serif;
-        padding: 5px 8px;
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, 0.1));
-        border-radius: 12px;
+        min-width: 30px;
+        font: 500 10px/1 "Roboto", "Arial", sans-serif;
+        padding: 3px 4px;
+        border: 0;
+        /* Dividers live on the cells themselves, so the block stays see-through. */
+        border-right: 1px solid var(--ytscc-line);
+        border-bottom: 1px solid var(--ytscc-line);
+        border-radius: 0;
         cursor: pointer;
         background: transparent;
-        color: var(--yt-spec-text-secondary, #606060);
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        color: var(--ytscc-fg);
+        transition: background 0.15s, color 0.15s;
+      }
+      #${BAR_ID} button:nth-child(3n) {
+        border-right: 0;
+      }
+      #${BAR_ID} button:nth-child(n + 4) {
+        border-bottom: 0;
       }
       #${BAR_ID} button:hover {
-        background: var(--yt-spec-10-percent-layer, rgba(0, 0, 0, 0.1));
-        color: var(--yt-spec-text-primary, #0f0f0f);
+        background: var(--ytscc-hover);
+        color: var(--ytscc-fg-strong);
       }
       #${BAR_ID} button.ytscc-active {
-        background: var(--yt-spec-text-primary, #0f0f0f);
-        border-color: transparent;
-        color: var(--yt-spec-base-background, #fff);
+        background: var(--ytscc-fg-strong);
+        color: var(--ytscc-on-accent);
       }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
 
   function selectSpeed(speed) {
+    tempSpeed = null;
     settings.speed = clampSpeed(speed);
     chrome.storage.sync.set({ speed: settings.speed });
-    // Apply immediately (even with enforcement toggled off) for instant feedback.
+    applyEffectiveSpeedNow();
+  }
+
+  // Apply immediately (even with enforcement toggled off) for instant feedback.
+  function applyEffectiveSpeedNow() {
     const video = getVideo();
-    if (video) video.playbackRate = settings.speed;
+    if (video) video.playbackRate = effectiveSpeed();
     updateActiveButtons();
   }
+
+  /* ---------- keyboard shortcuts ---------- */
+
+  // Ctrl+Down: temporarily drop to 1x. Ctrl+Up: back to the saved speed.
+  function isEditable(el) {
+    return (
+      el &&
+      (el.isContentEditable ||
+        el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.tagName === "SELECT")
+    );
+  }
+
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      if (isEditable(document.activeElement)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      tempSpeed = e.key === "ArrowDown" ? 1 : null;
+      applyEffectiveSpeedNow();
+    },
+    true
+  );
 
   function buildBar() {
     const bar = document.createElement("span");
@@ -170,7 +235,7 @@
   function updateActiveButtons() {
     const bar = document.getElementById(BAR_ID);
     if (!bar) return;
-    const target = clampSpeed(settings.speed);
+    const target = effectiveSpeed();
     for (const btn of bar.querySelectorAll("button")) {
       btn.classList.toggle(
         "ytscc-active",
