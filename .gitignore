@@ -11,3 +11,4 @@ dist/
 web-ext-artifacts/
 *.xpi
 *.zip
+.amo-upload-uuid
